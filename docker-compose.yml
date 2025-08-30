@@ -1,0 +1,112 @@
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: ecommerce_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: ecommerce_ai
+    healthcheck:
+      test: ["CMD", "mongosh", "mongodb://admin:password123@localhost:27017/admin", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - app-network
+
+  # Django Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        # Optional: use a custom PyPI mirror for faster/more reliable installs
+        PIP_INDEX_URL: ${PIP_INDEX_URL-}
+    container_name: ecommerce_backend
+    restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+      - 1.1.1.1
+    environment:
+      - DEBUG=True
+      - SECRET_KEY=django-insecure-docker-development-key-change-in-production
+      - MONGODB_URI=mongodb://mongodb:27017
+      - MONGODB_NAME=ecommerce_ai
+      - MONGODB_USERNAME=admin
+      - MONGODB_PASSWORD=password123
+      - MONGODB_AUTH_SOURCE=admin
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=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
+      - OPENROUTER_MODEL=meta-llama/llama-4-maverick:free
+      # Multiple OpenRouter API keys for rotation
+      - OPENROUTER_API_KEY_1=${OPENROUTER_API_KEY_1}
+      - OPENROUTER_API_KEY_2=${OPENROUTER_API_KEY_2}
+      - OPENROUTER_API_KEY_3=${OPENROUTER_API_KEY_3}
+      - OPENROUTER_API_KEY_4=${OPENROUTER_API_KEY_4}
+      - OPENROUTER_API_KEY_5=${OPENROUTER_API_KEY_5}
+      - OPENROUTER_API_KEY_6=${OPENROUTER_API_KEY_6}
+      - OPENROUTER_API_KEY_7=${OPENROUTER_API_KEY_7}
+      - OPENROUTER_API_KEY_8=${OPENROUTER_API_KEY_8}
+      - OPENROUTER_API_KEY_9=${OPENROUTER_API_KEY_9}
+      - OPENROUTER_API_KEY_10=${OPENROUTER_API_KEY_10}
+    # No host port exposed; accessed via Nginx
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    networks:
+      - app-network
+
+  # React Frontend
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Optional: set a custom npm registry and/or proxy settings
+        NPM_REGISTRY: ${NPM_REGISTRY-}
+        HTTP_PROXY: ${HTTP_PROXY-}
+        HTTPS_PROXY: ${HTTPS_PROXY-}
+        NO_PROXY: ${NO_PROXY-}
+    container_name: ecommerce_frontend
+    restart: unless-stopped
+    # No host port exposed; accessed via Nginx
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - app-network
+    environment:
+      - VITE_API_URL=/api
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: ecommerce_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - app-network
+
+volumes:
+  mongodb_data:
+
+networks:
+  app-network:
+    driver: bridge

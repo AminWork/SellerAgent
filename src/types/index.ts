@@ -1,8 +1,8 @@
 export interface Product {
-  id: number;
+  id: string;  // Changed to string for MongoDB ObjectId
   name: string;
   description: string;
-  price: number;
+  price: number | string;  // Allow both number and string for price
   image_url: string;
   tags: string[];
   category: string;

@@ -1,0 +1,17 @@
+# Ignore node modules and build outputs
+node_modules
+.dist
+dist
+build
+
+# Backend and infra not needed in frontend build context
+backend/
+nginx/
+docker-compose.yml
+mongo-init.js
+.env
+
+# Git & OS files
+.git
+.gitignore
+.DS_Store
